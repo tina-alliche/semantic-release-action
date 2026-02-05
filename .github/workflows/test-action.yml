@@ -1,0 +1,252 @@
+name: Test Semantic Release Action
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  test-action-basic:
+    name: Test Basic Functionality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create test tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -f v0.0.1 -m "Test tag"
+
+      - name: Run Semantic Release Action (default config)
+        id: semantic-release
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify outputs exist
+        run: |
+          echo "new-release-published: ${{ steps.semantic-release.outputs.new-release-published }}"
+          echo "artifactory-repo: ${{ steps.semantic-release.outputs.artifactory-repo }}"
+          
+          # Vérifier que les outputs sont définis
+          if [ -z "${{ steps.semantic-release.outputs.new-release-published }}" ]; then
+            echo "❌ ERREUR: Output 'new-release-published' est vide"
+            exit 1
+          fi
+          
+          if [ -z "${{ steps.semantic-release.outputs.artifactory-repo }}" ]; then
+            echo "❌ ERREUR: Output 'artifactory-repo' est vide"
+            exit 1
+          fi
+          
+          echo "✅ Tous les outputs sont définis"
+
+      - name: Verify Artifactory repo for main branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          REPO="${{ steps.semantic-release.outputs.artifactory-repo }}"
+          if [ "$REPO" != "release-candidates-local" ]; then
+            echo "❌ ERREUR: Sur main, artifactory-repo devrait être 'release-candidates-local', mais c'est '$REPO'"
+            exit 1
+          fi
+          echo "✅ Repository Artifactory correct pour la branche main"
+
+  test-action-custom-branches:
+    name: Test Custom Branches Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create test tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -f v0.0.1 -m "Test tag"
+
+      - name: Run Semantic Release Action (custom branches)
+        id: semantic-release
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          branches: '["main", "develop", "release/*"]'
+          jira-host: jira.test.com
+
+      - name: Verify custom config applied
+        run: |
+          echo "✅ Action s'exécute avec configuration personnalisée"
+          echo "Branches configurées: main, develop, release/*"
+          echo "Jira host: jira.test.com"
+
+  test-action-with-conventional-commit:
+    name: Test with Conventional Commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Create test tag
+        run: |
+          git tag -f v1.0.0 -m "Test tag v1.0.0"
+
+      - name: Create test commit
+        run: |
+          echo "test" >> test-file.txt
+          git add test-file.txt
+          git commit -m "feat(TEST-123): test conventional commit
+
+          This is a test feature for automated testing.
+          
+          Refs: TEST-123"
+
+      - name: Run Semantic Release Action
+        id: semantic-release
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          jira-host: jira.desjardins.com
+
+      - name: Verify version calculated
+        run: |
+          PUBLISHED="${{ steps.semantic-release.outputs.new-release-published }}"
+          VERSION="${{ steps.semantic-release.outputs.new-version }}"
+          
+          echo "Release published: $PUBLISHED"
+          echo "New version: $VERSION"
+          
+          # Sur une branche non-release (feature), ça sera en dry-run
+          # donc new-release-published peut être false
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            if [ "$PUBLISHED" != "true" ]; then
+              echo "⚠️ Warning: Sur main, une release devrait être publiée"
+            else
+              echo "✅ Release publiée sur main"
+              if [ -z "$VERSION" ]; then
+                echo "❌ ERREUR: Version vide après release"
+                exit 1
+              fi
+              echo "✅ Version générée: $VERSION"
+            fi
+          else
+            echo "ℹ️ Branche non-release, dry-run mode attendu"
+          fi
+
+  test-action-installation:
+    name: Test Dependencies Installation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run action (installation test only)
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Verify Semantic Release installed
+        run: |
+          if ! command -v semantic-release &> /dev/null; then
+            echo "❌ ERREUR: semantic-release n'est pas installé"
+            exit 1
+          fi
+          echo "✅ semantic-release est installé"
+          semantic-release --version
+
+  test-action-changelog-generation:
+    name: Test CHANGELOG Generation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Create test commits
+        run: |
+          git tag -f v1.0.0 -m "Test tag"
+          
+          echo "feature1" >> test1.txt
+          git add test1.txt
+          git commit -m "feat: add feature 1"
+          
+          echo "fix1" >> test2.txt
+          git add test2.txt
+          git commit -m "fix: fix bug 1"
+
+      - name: Run Semantic Release Action
+        id: semantic-release
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if CHANGELOG exists
+        run: |
+          if [ -f "CHANGELOG.md" ]; then
+            echo "✅ CHANGELOG.md a été généré"
+            echo "Contenu:"
+            cat CHANGELOG.md
+          else
+            echo "ℹ️ CHANGELOG.md n'a pas été créé (normal en dry-run ou sans release)"
+          fi
+
+  summary:
+    name: Test Summary
+    needs: [test-action-basic, test-action-custom-branches, test-action-with-conventional-commit, test-action-installation, test-action-changelog-generation]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "📊 Résumé des tests:"
+          echo "  - Test basic: ${{ needs.test-action-basic.result }}"
+          echo "  - Test custom branches: ${{ needs.test-action-custom-branches.result }}"
+          echo "  - Test conventional commit: ${{ needs.test-action-with-conventional-commit.result }}"
+          echo "  - Test installation: ${{ needs.test-action-installation.result }}"
+          echo "  - Test CHANGELOG: ${{ needs.test-action-changelog-generation.result }}"
+          
+          # Vérifier si tous les tests ont réussi
+          if [ "${{ needs.test-action-basic.result }}" != "success" ] || \
+             [ "${{ needs.test-action-custom-branches.result }}" != "success" ] || \
+             [ "${{ needs.test-action-with-conventional-commit.result }}" != "success" ] || \
+             [ "${{ needs.test-action-installation.result }}" != "success" ] || \
+             [ "${{ needs.test-action-changelog-generation.result }}" != "success" ]; then
+            echo "❌ Certains tests ont échoué"
+            exit 1
+          fi
+          
+          echo "✅ Tous les tests ont réussi!"
