@@ -3,14 +3,14 @@ name: Test Semantic Release Action
 on:
   push:
     branches:
-      - main
+      - master
       - develop
     paths:
       - 'action.yml'
       - '.github/workflows/test-action.yml'
   pull_request:
     branches:
-      - main
+      - master
     paths:
       - 'action.yml'
       - '.github/workflows/test-action.yml'
