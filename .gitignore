@@ -22,8 +22,3 @@ Thumbs.db
 *.swo
 *~
 
-# Test artifacts
-test-file.txt
-test1.txt
-test2.txt
-CHANGELOG.md
