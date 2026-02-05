@@ -1,4 +1,4 @@
-# ad-semantic-release-action
+# semantic-release-action
 
 Action GitHub composite pour automatiser le versioning avec Semantic Release et intégration Jira.
 
