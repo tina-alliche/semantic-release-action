@@ -1,0 +1,833 @@
+h1. Guide Complet Semantic Release
+
+{info}
+Ce guide explique comment utiliser Semantic Release pour automatiser le versioning, les releases et le CHANGELOG de vos projets chez Desjardins.
+{info}
+
+{toc:printable=true|style=square|maxLevel=3|indent=20px|minLevel=2|exclude=Sommaire}
+
+----
+
+h2. Qu'est-ce que Semantic Release?
+
+Semantic Release est un outil qui automatise complètement le processus de release de votre projet:
+* ✅ *Calcul automatique* de la nouvelle version selon les commits
+* ✅ *Génération* du CHANGELOG.md
+* ✅ *Création* du tag Git et de la release GitHub
+* ✅ *Liens automatiques* vers les tickets Jira dans les release notes
+
+h3. Bénéfices
+
+|| Avant Semantic Release || Après Semantic Release ||
+| Développeur modifie manuellement {{build.gradle}} | Version calculée automatiquement |
+| Oublis fréquents de bumper la version | Impossible d'oublier |
+| CHANGELOG manuel ou absent | CHANGELOG généré automatiquement |
+| Tags Git oubliés ou mal nommés | Tags créés systématiquement |
+| Versions inconsistantes entre projets | Standard uniforme |
+
+----
+
+h2. Semantic Versioning (SemVer)
+
+Semantic Release utilise le [Semantic Versioning|https://semver.org/] : {{MAJOR.MINOR.PATCH}}
+
+h3. Format de version
+
+{code}
+1.2.3
+│ │ └─ PATCH : Corrections de bugs (backward compatible)
+│ └─── MINOR : Nouvelles fonctionnalités (backward compatible)
+└───── MAJOR : Breaking changes (incompatible avec versions précédentes)
+{code}
+
+h3. Règles d'incrémentation
+
+|| Type de changement || Impact || Exemple ||
+| Correction de bug | {{PATCH}} | {{1.0.0 → 1.0.1}} |
+| Nouvelle fonctionnalité | {{MINOR}} | {{1.0.0 → 1.1.0}} |
+| Breaking change | {{MAJOR}} | {{1.0.0 → 2.0.0}} |
+
+h3. Exemples
+
+{panel:title=Évolution de version|borderStyle=solid|borderColor=#ccc|titleBGColor=#f0f0f0}
+* {{1.0.0}} - Release initiale
+* {{1.0.1}} - Fix: correction d'un bug
+* {{1.1.0}} - Feature: nouvelle fonctionnalité
+* {{1.1.1}} - Fix: correction d'un bug
+* {{2.0.0}} - Breaking change: refonte de l'API
+* {{2.1.0}} - Feature: nouvelle fonctionnalité
+{panel}
+
+----
+
+h2. Conventional Commits
+
+Semantic Release analyse vos commits pour déterminer la version. Vous devez suivre la convention [Conventional Commits|https://www.conventionalcommits.org/].
+
+h3. Format de base
+
+{code}
+<type>(<scope>): <description>
+
+[corps optionnel]
+
+[footer optionnel]
+{code}
+
+h3. Types de commits
+
+|| Type || Description || Impact Version || Section dans Release ||
+| {{feat:}} | Nouvelle fonctionnalité | *MINOR* ↑ | Features |
+| {{fix:}} | Correction de bug | *PATCH* ↑ | Bug Fixes |
+| {{perf:}} | Amélioration de performance | *PATCH* ↑ | Performance Improvements |
+| {{docs:}} | Documentation uniquement | Aucun | Documentation |
+| {{style:}} | Formatage, point-virgules, etc. | Aucun | _Caché_ |
+| {{refactor:}} | Refactoring sans changement fonctionnel | Aucun | _Caché_ |
+| {{test:}} | Ajout/modification de tests | Aucun | _Caché_ |
+| {{chore:}} | Maintenance, dépendances, config | Aucun | _Caché_ |
+| {{ci:}} | Changements CI/CD | Aucun | _Caché_ |
+| {{build:}} | Système de build | Aucun | _Caché_ |
+| {{revert:}} | Annulation d'un commit précédent | Selon le commit annulé | Reverts |
+
+{info:title=Note importante}
+Seuls les commits {{feat:}} et {{fix:}} génèrent une nouvelle version. Les autres types sont inclus dans le CHANGELOG mais ne déclenchent pas de release.
+{info}
+
+h3. Exemples de commits simples
+
+{code:java}
+feat: ajout export PDF des rapports
+fix: correction validation email
+docs: mise à jour README avec exemples
+chore: mise à jour dépendances
+refactor: simplification du service claims
+test: ajout tests unitaires pour validation
+{code}
+
+h3. Avec scope (optionnel mais recommandé)
+
+Le {{scope}} indique la partie du projet affectée:
+
+{code:java}
+feat(api): ajout endpoint GET /policies
+fix(auth): correction timeout OAuth
+docs(readme): mise à jour instructions installation
+perf(database): optimisation requête recherche
+{code}
+
+*Scopes courants:*
+* {{api}} - Endpoints REST
+* {{auth}} - Authentification
+* {{database}} - Base de données
+* {{ui}} - Interface utilisateur
+* {{config}} - Configuration
+
+h3. Avec description longue
+
+{code:java}
+feat: ajout système de notifications
+
+Implémentation complète du système de notifications incluant:
+- Notifications email pour nouveaux sinistres
+- Notifications SMS pour urgences
+- Configuration des préférences utilisateur
+- Historique des notifications envoyées
+
+Cette fonctionnalité permet aux utilisateurs de rester informés
+en temps réel de l'évolution de leurs dossiers.
+{code}
+
+h3. Breaking Changes (MAJOR)
+
+Pour indiquer un breaking change, utilisez {{!}} ou {{BREAKING CHANGE:}} dans le footer:
+
+{panel:title=Méthode 1: Utiliser !|borderStyle=solid|borderColor=#d04437}
+{code:java}
+feat(api)!: migration vers OAuth 2.0
+
+L'authentification Basic Auth n'est plus supportée.
+{code}
+{panel}
+
+{panel:title=Méthode 2: Footer BREAKING CHANGE|borderStyle=solid|borderColor=#d04437}
+{code:java}
+feat(api): migration vers OAuth 2.0
+
+BREAKING CHANGE: L'authentification Basic Auth n'est plus supportée.
+Tous les clients doivent migrer vers OAuth 2.0 avant le 2025-03-01.
+Voir la documentation de migration: https://docs.internal/oauth-migration
+{code}
+{panel}
+
+*Résultat:* Version {{1.5.2 → 2.0.0}} (MAJOR bump)
+
+----
+
+h2. Intégration Jira
+
+Semantic Release peut créer automatiquement des liens vers vos tickets Jira dans les release notes.
+
+h3. Format recommandé
+
+{code:java}
+<type>(<TICKET-ID>): <description>
+{code}
+
+h3. Exemples avec Jira
+
+{code:java}
+feat(INFRA-123): ajout système de cache Redis
+fix(SEC-456): correction faille XSS dans formulaire
+perf(OPT-789): optimisation requêtes base de données
+docs(DOC-101): ajout guide déploiement
+{code}
+
+h3. Avec description longue
+
+{code:java}
+feat(INFRA-123): ajout système de cache Redis
+
+Implémentation d'un cache Redis pour améliorer les performances:
+- Cache des résultats de recherche (TTL: 5min)
+- Cache des sessions utilisateur (TTL: 30min)
+- Invalidation automatique lors des mises à jour
+
+Performance gain: ~40% sur les endpoints de recherche.
+
+Closes INFRA-123
+{code}
+
+h3. Résultat dans les Release Notes
+
+{code}
+## [1.2.0](https://github.com/org/repo/compare/v1.1.0...v1.2.0) (2025-02-05)
+
+### Features
+
+* **[INFRA-123](https://jira.desjardins.com/browse/INFRA-123)**: ajout système de cache Redis
+* **[SEC-456](https://jira.desjardins.com/browse/SEC-456)**: correction faille XSS
+
+### Bug Fixes
+
+* **[OPT-789](https://jira.desjardins.com/browse/OPT-789)**: optimisation requêtes base de données
+{code}
+
+h3. Limitation connue
+
+{warning:title=Préfixes avec underscore}
+Les préfixes Jira contenant des underscores (ex: {{DDD_SD-123}}) ne génèrent *pas* de liens corrects.
+
+*Problème:* {{DDD_SD-123}} génère un lien vers {{SD-123}} au lieu de {{DDD_SD-123}}
+
+*Solution:* Utiliser des préfixes alphanumériques uniquement (ex: {{DDDSD-123}}, {{INFRA-123}})
+{warning}
+
+h3. Multiples tickets
+
+Si un commit touche plusieurs tickets:
+
+{code:java}
+fix(SEC-456, SEC-457): correction multiples failles sécurité
+
+Corrige les vulnérabilités identifiées dans:
+- SEC-456: Faille XSS dans formulaire contact
+- SEC-457: Faille CSRF dans API admin
+
+Les deux failles sont maintenant corrigées et validées par l'équipe sécurité.
+{code}
+
+----
+
+h2. Workflow de développement
+
+h3. Workflow standard avec Semantic Release
+
+{panel:title=Étapes du workflow|borderStyle=solid|borderColor=#14892c|titleBGColor=#e3fcef}
+*1. Créer une branche depuis le ticket Jira*
+{code:bash}
+git checkout -b feature/INFRA-123-cache-redis
+{code}
+
+*2. Développer avec des commits conventionnels*
+{code:bash}
+git commit -m "feat(INFRA-123): ajout configuration Redis"
+git commit -m "test(INFRA-123): ajout tests cache Redis"
+git commit -m "docs(INFRA-123): documentation cache Redis"
+{code}
+
+*3. Pousser et créer une Pull Request*
+{code:bash}
+git push origin feature/INFRA-123-cache-redis
+{code}
+
+*4. Après approbation, merger vers main*
+
+*5. Semantic Release s'exécute automatiquement et:*
+* Analyse les commits depuis la dernière release
+* Calcule la nouvelle version (ex: {{1.1.0 → 1.2.0}})
+* Génère le CHANGELOG
+* Crée le tag Git {{v1.2.0}}
+* Crée la release GitHub avec liens Jira
+* Le build utilise cette version {{1.2.0}}
+{panel}
+
+h3. Scénarios de versioning
+
+|| Commits depuis dernière release || Version actuelle || Nouvelle version ||
+| {{feat: nouvelle fonctionnalité}} | {{1.0.0}} | {{1.1.0}} (MINOR) |
+| {{fix: correction bug}} | {{1.0.0}} | {{1.0.1}} (PATCH) |
+| {{feat: A}} + {{fix: B}} | {{1.0.0}} | {{1.1.0}} (MINOR gagne) |
+| {{feat!: breaking change}} | {{1.0.0}} | {{2.0.0}} (MAJOR) |
+| {{docs: mise à jour}} | {{1.0.0}} | Aucune (pas de release) |
+| {{chore: dépendances}} | {{1.0.0}} | Aucune (pas de release) |
+
+h3. Première release d'un projet
+
+Si votre projet n'a jamais eu de release Semantic Release:
+
+{code:bash}
+# 1. Créer un tag initial basé sur votre version actuelle
+git tag v1.0.0
+git push origin v1.0.0
+
+# 2. À partir de maintenant, utiliser conventional commits
+git commit -m "feat: nouvelle fonctionnalité"
+git push
+
+# 3. Semantic Release calculera la prochaine version (1.1.0)
+{code}
+
+----
+
+h2. Configuration dans vos projets
+
+h3. Activer Semantic Release
+
+Dans votre workflow CI ({{.github/workflows/ci-main.yml}}):
+
+{code:yaml}
+name: ci-main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  build:
+    uses: Desjardins/ad-gha-workflows/.github/workflows/ad-ci-java-and-docker.yml@v3
+    with:
+      technology: gradle
+      group-id: ad.digital.mobile
+      component-name: mon-composant
+      jdk-version: 21
+      docker-labels: |
+        PROPRIETAIRE: "email@desjardins.com"
+      
+      # Activer Semantic Release
+      semantic-release-enabled: true
+      semantic-release-branches: '["main"]'
+      
+    secrets:
+      ROLEID: ${{ secrets.ROLEID }}
+      SECRETID: ${{ secrets.SECRETID }}
+{code}
+
+h3. Configuration des branches
+
+|| Configuration || Comportement ||
+| {{semantic-release-branches: '\["main"\]'}} | Releases uniquement sur {{main}} |
+| {{semantic-release-branches: '\["main", "develop"\]'}} | Releases sur {{main}} et {{develop}} |
+| {{semantic-release-branches: '\["main", "release/*"\]'}} | Releases sur {{main}} et toutes les branches {{release/*}} |
+
+{info:title=Dry-run sur autres branches}
+Sur les branches *non* listées dans {{semantic-release-branches}}, Semantic Release tourne en mode *dry-run* (analyse uniquement, pas de release créée).
+{info}
+
+h3. Configuration multi-branches
+
+{code:yaml}
+with:
+  semantic-release-enabled: true
+  semantic-release-branches: '["main", "develop"]'
+{code}
+
+*Résultat:*
+* {{main}} → Releases de production ({{1.0.0}}, {{1.1.0}}, {{2.0.0}})
+* {{develop}} → Releases de pré-production ({{1.1.0-beta.1}}, {{1.1.0-beta.2}})
+* {{feature/*}} → Pas de release (dry-run uniquement)
+
+----
+
+h2. Exemples pratiques
+
+h3. Scénario 1: Nouvelle fonctionnalité simple
+
+{panel:title=Contexte|borderStyle=solid}
+Vous devez ajouter un export PDF dans l'application.
+{panel}
+
+{code:bash}
+# 1. Créer la branche
+git checkout -b feature/FEAT-456-export-pdf
+
+# 2. Développer
+# ... code ...
+
+# 3. Commiter
+git add .
+git commit -m "feat(FEAT-456): ajout export PDF des rapports
+
+Permet aux utilisateurs d'exporter leurs rapports en format PDF.
+Inclut la génération de graphiques et tableaux.
+
+Closes FEAT-456"
+
+# 4. Pousser et merger
+git push origin feature/FEAT-456-export-pdf
+# Créer PR, obtenir approbation, merger vers main
+
+# 5. Sur main, Semantic Release crée automatiquement:
+# - Version 1.5.0 → 1.6.0
+# - Tag v1.6.0
+# - Release GitHub avec lien vers FEAT-456
+# - CHANGELOG mis à jour
+{code}
+
+h3. Scénario 2: Correction de bug urgent
+
+{panel:title=Contexte|borderStyle=solid}
+Bug en production: la validation d'email accepte des formats invalides.
+{panel}
+
+{code:bash}
+# 1. Créer la branche depuis main
+git checkout -b hotfix/BUG-789-validation-email
+
+# 2. Corriger le bug
+# ... code ...
+
+# 3. Commiter
+git commit -m "fix(BUG-789): correction validation email
+
+La regex de validation email acceptait des formats invalides
+comme 'user@.com' ou '@domain.com'.
+
+Correction: Utilisation de la regex RFC 5322 complète.
+Tests ajoutés pour tous les cas edge.
+
+Fixes BUG-789"
+
+# 4. Merger vers main
+# Semantic Release crée:
+# - Version 1.6.0 → 1.6.1
+# - Tag v1.6.1
+# - Hotfix déployable immédiatement
+{code}
+
+h3. Scénario 3: Breaking change (refonte API)
+
+{panel:title=Contexte|borderStyle=solid}
+Refonte complète de l'API pour améliorer la sécurité. Les clients devront adapter leur code.
+{panel}
+
+{code:bash}
+git checkout -b feature/API-100-oauth2-migration
+
+# Développement...
+
+git commit -m "feat(api)!: migration vers OAuth 2.0
+
+BREAKING CHANGE: L'authentification Basic Auth n'est plus supportée.
+
+Migration requise:
+- Remplacer Basic Auth par OAuth 2.0
+- Obtenir client_id et client_secret
+- Voir guide: https://docs.internal/oauth-migration
+
+Les anciens endpoints continuent de fonctionner jusqu'au 2025-06-01
+pour permettre la migration.
+
+Closes API-100"
+
+# Après merge:
+# - Version 1.6.1 → 2.0.0 (MAJOR bump)
+# - Release avec section "BREAKING CHANGES" bien visible
+{code}
+
+h3. Scénario 4: Release avec multiples commits
+
+{panel:title=Contexte|borderStyle=solid}
+Plusieurs développeurs ont travaillé sur différentes fonctionnalités.
+{panel}
+
+{code:bash}
+# État actuel: v1.5.0
+
+# Commits depuis dernière release:
+# - feat(FEAT-100): ajout recherche avancée
+# - feat(FEAT-101): ajout filtres dynamiques
+# - fix(BUG-200): correction tri par date
+# - docs: mise à jour README
+# - chore: mise à jour dépendances
+
+# Semantic Release analyse tous les commits et:
+# 1. Détecte 2 features (MINOR) et 1 fix (PATCH)
+# 2. MINOR gagne sur PATCH
+# 3. Génère version: 1.5.0 → 1.6.0
+# 4. Crée release avec toutes les notes groupées:
+
+# Release Notes générées:
+{code}
+{code}
+## [1.6.0] - 2025-02-05
+
+### Features
+* **[FEAT-100](https://jira.desjardins.com/browse/FEAT-100)**: ajout recherche avancée
+* **[FEAT-101](https://jira.desjardins.com/browse/FEAT-101)**: ajout filtres dynamiques
+
+### Bug Fixes
+* **[BUG-200](https://jira.desjardins.com/browse/BUG-200)**: correction tri par date
+
+### Documentation
+* mise à jour README
+{code}
+
+----
+
+h2. Bonnes pratiques
+
+h3. ✅ DO - À faire
+
+{panel:title=Commits atomiques|borderStyle=solid|borderColor=#14892c|titleBGColor=#e3fcef}
+{code:bash}
+# ✅ BON - Un commit par changement logique
+git commit -m "feat(FEAT-123): ajout recherche avancée"
+git commit -m "test(FEAT-123): ajout tests recherche"
+git commit -m "docs(FEAT-123): documentation recherche"
+{code}
+{panel}
+
+{panel:title=Messages descriptifs|borderStyle=solid|borderColor=#14892c|titleBGColor=#e3fcef}
+{code:bash}
+# ✅ BON - Description claire et complète
+git commit -m "fix(AUTH-456): correction timeout sur login OAuth
+
+Le timeout de 5s était trop court pour les connexions lentes.
+Augmentation à 30s avec retry automatique.
+
+Fixes AUTH-456"
+{code}
+{panel}
+
+{panel:title=Utiliser les scopes|borderStyle=solid|borderColor=#14892c|titleBGColor=#e3fcef}
+{code:bash}
+# ✅ BON - Scope indique la partie affectée
+git commit -m "feat(api): ajout endpoint GET /policies"
+git commit -m "fix(database): correction index manquant"
+git commit -m "perf(cache): optimisation Redis"
+{code}
+{panel}
+
+{panel:title=Référencer Jira|borderStyle=solid|borderColor=#14892c|titleBGColor=#e3fcef}
+{code:bash}
+# ✅ BON - Ticket Jira dans le scope
+git commit -m "feat(INFRA-123): ajout monitoring Prometheus"
+{code}
+{panel}
+
+h3. ❌ DON'T - À éviter
+
+{panel:title=Commits génériques|borderStyle=solid|borderColor=#d04437|titleBGColor=#ffebe6}
+{code:bash}
+# ❌ MAUVAIS
+git commit -m "fix stuff"
+git commit -m "WIP"
+git commit -m "updates"
+git commit -m "changes"
+{code}
+{panel}
+
+{panel:title=Commits multi-responsabilités|borderStyle=solid|borderColor=#d04437|titleBGColor=#ffebe6}
+{code:bash}
+# ❌ MAUVAIS - Mélange feature + fix + refactoring
+git commit -m "feat: ajout export PDF + fix validation + refactoring"
+
+# ✅ BON - Séparer en 3 commits
+git commit -m "feat: ajout export PDF"
+git commit -m "fix: correction validation"
+git commit -m "refactor: simplification code export"
+{code}
+{panel}
+
+{panel:title=Format non-conventionnel|borderStyle=solid|borderColor=#d04437|titleBGColor=#ffebe6}
+{code:bash}
+# ❌ MAUVAIS
+git commit -m "Added new feature"
+git commit -m "FIX: bug correction"
+git commit -m "Update: changed API"
+
+# ✅ BON
+git commit -m "feat: ajout nouvelle fonctionnalité"
+git commit -m "fix: correction bug"
+git commit -m "feat!: modification API"
+{code}
+{panel}
+
+h3. Conseils avancés
+
+{tip:title=Squash avant merge}
+Si vous avez beaucoup de petits commits pendant le développement, squash-les en commits conventionnels cohérents avant le merge vers {{main}}.
+{tip}
+
+{tip:title=Pre-commit hooks}
+Configurez un hook pre-commit pour valider le format des commits automatiquement avec [commitlint|https://commitlint.js.org/].
+{tip}
+
+{tip:title=Revue de commits}
+Lors des code reviews, vérifiez aussi la qualité des messages de commit, pas seulement le code.
+{tip}
+
+----
+
+h2. Cas d'usage avancés
+
+h3. Revert d'un commit
+
+{code:bash}
+# Annuler un commit précédent
+git revert abc1234
+
+# Message généré automatiquement:
+# revert: feat(FEAT-123): ajout export PDF
+#
+# This reverts commit abc1234567890.
+{code}
+
+Semantic Release détectera le revert et l'inclura dans les release notes.
+
+h3. Hotfix sur ancienne version
+
+Si vous devez corriger une ancienne version:
+
+{code:bash}
+# 1. Créer une branche depuis le tag à corriger
+git checkout -b hotfix/1.5.x v1.5.0
+
+# 2. Faire le fix
+git commit -m "fix: correction critique"
+
+# 3. Créer un tag manuel
+git tag v1.5.1
+git push origin v1.5.1
+
+# 4. Cherry-pick vers main si nécessaire
+git checkout main
+git cherry-pick <commit-hash>
+{code}
+
+h3. Pre-release (beta, rc)
+
+Pour créer des pre-releases:
+
+{code:bash}
+# Configurer une branche beta
+# Dans semantic-release-branches: '["main", "beta"]'
+
+# Sur branche beta:
+git commit -m "feat: nouvelle fonctionnalité beta"
+# Génère: 1.6.0-beta.1
+
+git commit -m "fix: correction"
+# Génère: 1.6.0-beta.2
+
+# Quand prêt, merger vers main
+# Génère: 1.6.0 (version finale)
+{code}
+
+----
+
+h2. Troubleshooting
+
+h3. Pas de nouvelle version générée
+
+{panel:title=Symptôme|borderStyle=solid}
+Semantic Release s'exécute mais ne crée pas de nouvelle version.
+{panel}
+
+*Causes possibles:*
+# Aucun commit {{feat:}} ou {{fix:}} depuis la dernière release
+# Les commits ne suivent pas la convention
+# Branch pas dans {{semantic-release-branches}}
+
+*Solutions:*
+{code:bash}
+# Vérifier les commits depuis le dernier tag
+git log v1.5.0..HEAD --oneline
+
+# Si pas de feat/fix, c'est normal
+# Version dev 0.0.0-dev.N sera utilisée
+
+# Pour forcer une release:
+git commit -m "feat: mise à jour dépendances" --allow-empty
+{code}
+
+h3. Erreur de permission GitHub
+
+{panel:title=Symptôme|borderStyle=solid}
+{{Error: Permission denied to create release}}
+{panel}
+
+*Cause:* Permissions GitHub insuffisantes
+
+*Solution:*
+{code:yaml}
+# Ajouter dans le workflow:
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+{code}
+
+h3. CHANGELOG non généré
+
+{panel:title=Symptôme|borderStyle=solid}
+Pas de fichier {{CHANGELOG.md}} créé.
+{panel}
+
+*Causes possibles:*
+# Première release (normal)
+# Aucun commit générant de release
+
+*Solution:*
+Après la première release avec {{feat:}} ou {{fix:}}, le CHANGELOG sera créé automatiquement.
+
+h3. Lien Jira cassé
+
+{panel:title=Symptôme|borderStyle=solid}
+Lien vers {{SD-123}} au lieu de {{DDD_SD-123}}
+{panel}
+
+*Cause:* Préfixe Jira avec underscore
+
+*Solution:*
+Utiliser un préfixe sans underscore ({{DDDSD-123}}) ou accepter le lien partiel.
+
+----
+
+h2. Checklist de migration
+
+Pour migrer un projet existant vers Semantic Release:
+
+{panel:title=Checklist|borderStyle=solid|borderColor=#0052cc|titleBGColor=#deebff}
+☐ *Prérequis*
+  ☐ Projet utilise Git
+  ☐ Projet hébergé sur GitHub
+  ☐ CI/CD configuré avec GitHub Actions
+
+☐ *Configuration*
+  ☐ Créer un tag initial basé sur version actuelle: {{git tag v1.0.0}}
+  ☐ Activer Semantic Release dans le workflow
+  ☐ Configurer {{semantic-release-branches}}
+  ☐ Ajouter les permissions GitHub
+
+☐ *Formation équipe*
+  ☐ Partager cette documentation
+  ☐ Session de formation Conventional Commits (30min)
+  ☐ Créer des exemples de commits
+  ☐ Configurer templates de commit (optionnel)
+
+☐ *Validation*
+  ☐ Faire un commit {{feat:}} de test
+  ☐ Vérifier que la release est créée
+  ☐ Vérifier le CHANGELOG généré
+  ☐ Vérifier les liens Jira
+  ☐ Confirmer que le build utilise la bonne version
+
+☐ *Communication*
+  ☐ Annoncer le changement à l'équipe
+  ☐ Mettre à jour la documentation projet
+  ☐ Ajouter badge Semantic Release dans README
+{panel}
+
+----
+
+h2. FAQ
+
+h3. Puis-je encore faire des releases manuelles?
+
+Non. Avec Semantic Release activé, *toutes* les releases sont automatiques. C'est voulu pour garantir la cohérence.
+
+h3. Que se passe-t-il si j'oublie la convention?
+
+Le commit sera accepté mais ne générera pas de release. La version dev {{0.0.0-dev.N}} sera utilisée.
+
+h3. Puis-je modifier un tag après création?
+
+*Non recommandé.* Les tags sont immuables. Si erreur, créer une nouvelle release corrective.
+
+h3. Comment gérer les hotfixes?
+
+Faire un commit {{fix:}} sur {{main}} et merger. Semantic Release créera automatiquement un PATCH ({{1.5.0 → 1.5.1}}).
+
+h3. Semantic Release fonctionne avec Maven/Gradle?
+
+Oui. Semantic Release génère la version, puis le workflow l'injecte dans Maven/Gradle pour le build.
+
+h3. Puis-je désactiver Semantic Release temporairement?
+
+Oui:
+{code:yaml}
+with:
+  semantic-release-enabled: false
+{code}
+
+Le workflow reviendra au versioning manuel ({{build.gradle}}/{{pom.xml}}).
+
+h3. Les branches de feature créent-elles des releases?
+
+Non, seulement les branches listées dans {{semantic-release-branches}}. Les autres tournent en dry-run (analyse uniquement).
+
+----
+
+h2. Ressources
+
+h3. Documentation officielle
+
+* [Semantic Release|https://semantic-release.gitbook.io/] - Documentation complète
+* [Conventional Commits|https://www.conventionalcommits.org/] - Spécification des commits
+* [Semantic Versioning|https://semver.org/] - Spécification du versioning
+
+h3. Outils internes Desjardins
+
+* [ad-semantic-release-action|https://github.com/Desjardins/ad-semantic-release-action] - Action GitHub utilisée
+* [ad-gha-workflows|https://github.com/Desjardins/ad-gha-workflows] - Workflows réutilisables
+
+h3. Outils externes utiles
+
+* [commitlint|https://commitlint.js.org/] - Validation automatique des commits
+* [commitizen|https://github.com/commitizen/cz-cli] - CLI pour générer des commits conventionnels
+* [semantic-release-jira-notes|https://github.com/iamludal/semantic-release-jira-notes] - Plugin Jira utilisé
+
+----
+
+h2. Support
+
+{info:title=Besoin d'aide?}
+* Questions: Ouvrir une discussion sur [GitHub Discussions|https://github.com/Desjardins/ad-semantic-release-action/discussions]
+* Bugs: Créer une issue sur [GitHub Issues|https://github.com/Desjardins/ad-semantic-release-action/issues]
+* Contact: Équipe DevOps - devops@desjardins.com
+{info}
+
+----
+
+{panel:title=Dernière mise à jour|borderStyle=solid|borderColor=#f4f5f7}
+*Version:* 1.0
+*Date:* 2025-02-05
+*Auteur:* Équipe DevOps Desjardins
+{panel}
