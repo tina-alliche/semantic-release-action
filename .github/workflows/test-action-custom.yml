@@ -283,7 +283,7 @@ jobs:
       - name: Create test commit with custom config
         run: |
           echo "test" >> test-custom.txt
-          git add test-custom.txt .releaserc.json
+          git add test-custom.txt
           git commit -m "feat(TEST-999): test with custom configuration
 
           This tests that the action detects and uses custom .releaserc.json
@@ -306,7 +306,7 @@ jobs:
           # On vérifie via les logs ou la présence du fichier
           if [ -f ".releaserc.json" ]; then
             echo "✅ Fichier .releaserc.json présent"
-            
+          
             # Vérifier le contenu
             if grep -q "Custom Features" .releaserc.json; then
               echo "✅ Configuration personnalisée détectée avec sections custom"
@@ -314,14 +314,14 @@ jobs:
               echo "❌ La configuration ne semble pas personnalisée"
               exit 1
             fi
-            
+          
             if grep -q "jira.custom.com" .releaserc.json; then
               echo "✅ Jira host personnalisé détecté (jira.custom.com)"
             else
               echo "❌ Jira host par défaut détecté au lieu du custom"
               exit 1
             fi
-            
+          
             echo "✅ Test de configuration personnalisée réussi!"
           else
             echo "❌ Fichier .releaserc.json non trouvé"
@@ -374,7 +374,7 @@ jobs:
           
           if [ -f ".releaserc.json" ]; then
             echo "✅ Fichier .releaserc.json créé par l'action"
-            
+          
             # Vérifier que c'est la config par défaut
             if grep -q "jira.desjardins.com" .releaserc.json; then
               echo "✅ Configuration par défaut détectée (jira.desjardins.com)"
@@ -382,7 +382,7 @@ jobs:
               echo "❌ Configuration ne semble pas être celle par défaut"
               exit 1
             fi
-            
+          
             # Vérifier les sections par défaut (sans emojis)
             if grep -q '"section": "Features"' .releaserc.json; then
               echo "✅ Sections par défaut détectées (sans emojis)"
@@ -390,7 +390,7 @@ jobs:
               echo "❌ Sections ne correspondent pas à la config par défaut"
               exit 1
             fi
-            
+          
             echo "✅ Test de configuration par défaut réussi!"
           else
             echo "❌ Fichier .releaserc.json n'a pas été créé"
