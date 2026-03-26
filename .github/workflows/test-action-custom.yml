@@ -2,18 +2,7 @@ name: Test Semantic Release Action
 
 on:
   push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'action.yml'
-      - '.github/workflows/test-action.yml'
   pull_request:
-    branches:
-      - main
-    paths:
-      - 'action.yml'
-      - '.github/workflows/test-action.yml'
   workflow_dispatch:
 
 permissions:
