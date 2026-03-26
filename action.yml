@@ -58,7 +58,21 @@ runs:
       shell: bash
       run: |
         echo "⚙️ Configuration de Semantic Release..."
-        cat > .releaserc.json << 'EOF'
+        
+        # Vérifier si un fichier .releaserc.json existe déjà dans le projet
+        if [ -f ".releaserc.json" ]; then
+          echo "📄 Configuration personnalisée détectée: .releaserc.json"
+          echo "✅ Utilisation de la configuration du projet"
+        
+          # Afficher la configuration pour debug
+          echo "Configuration utilisée:"
+          cat .releaserc.json
+        else
+          echo "📝 Aucune configuration personnalisée trouvée"
+          echo "✅ Utilisation de la configuration par défaut"
+        
+          # Créer la configuration par défaut
+          cat > .releaserc.json << 'EOF'
         {
           "branches": ${{ inputs.branches }},
           "plugins": [
@@ -108,7 +122,9 @@ runs:
           ]
         }
         EOF
-        echo "✅ Configuration créée"
+        fi
+        
+        echo "✅ Configuration prête"
 
     - name: Run Semantic Release
       id: semantic

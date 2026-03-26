@@ -1,4 +1,4 @@
-# semantic-release-action
+# ad-semantic-release-action
 
 Action GitHub composite pour automatiser le versioning avec Semantic Release et intégration Jira.
 
@@ -47,6 +47,84 @@ Action GitHub composite pour automatiser le versioning avec Semantic Release et 
     branches: '["main", "develop", "release/*"]'
     jira-host: jira.desjardins.com
 ```
+
+### Configuration avancée avec `.releaserc.json` personnalisé
+
+L'action détecte automatiquement un fichier `.releaserc.json` à la racine de votre projet.
+
+**Priorité de configuration:**
+1. ✅ Si `.releaserc.json` existe dans votre repo → utilise cette configuration
+2. ✅ Sinon → utilise la configuration par défaut de l'action
+
+**Pour personnaliser:**
+
+1. Créer un fichier `.releaserc.json` à la racine de votre projet:
+
+```json
+{
+  "branches": ["main", "develop"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    [
+      "semantic-release-jira-notes",
+      {
+        "jiraHost": "jira.desjardins.com",
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "✨ Features" },
+            { "type": "fix", "section": "🐛 Bug Fixes" },
+            { "type": "perf", "section": "⚡ Performance" },
+            { "type": "docs", "section": "📚 Documentation", "hidden": false }
+          ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md",
+        "changelogTitle": "# Changelog\n\nAll notable changes to this project."
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "echo ${nextRelease.version} > .version"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "package.json"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    "@semantic-release/github"
+  ]
+}
+```
+
+2. Commiter ce fichier dans votre repo:
+
+```bash
+git add .releaserc.json
+git commit -m "chore: add custom Semantic Release configuration"
+git push
+```
+
+3. L'action utilisera automatiquement votre configuration!
+
+**Cas d'usage de la configuration personnalisée:**
+- Ajouter des emojis dans les sections (✨, 🐛, ⚡)
+- Afficher plus de types de commits dans le CHANGELOG (docs, test, etc.)
+- Personnaliser le message de commit de release
+- Ajouter des assets supplémentaires au commit de release
+- Modifier le titre du CHANGELOG
+- Ajouter des plugins Semantic Release supplémentaires
+
+**⚠️ Note importante:**
+Si vous utilisez une configuration personnalisée, assurez-vous d'installer les plugins npm nécessaires dans votre projet, ou que l'action les installe déjà (ce qui est le cas pour les plugins par défaut).
 
 ### Utilisation des outputs
 
